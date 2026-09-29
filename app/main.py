@@ -1,20 +1,26 @@
-"""Punto de entrada del esqueleto de SGE-API.
+"""Punto de entrada de la API de Salon Glitt.
 
-Esta versión monta SOLO el endpoint de salud y no abre conexión con la base de
-datos, para que el servicio arranque sin PostgreSQL levantado. Es a propósito:
-el primer día lo que hace falta es comprobar que el entorno funciona, no que
-todo el sistema funciona.
-
-El `main.py` del módulo 1 —con `lifespan`, CORS, manejadores de error y los
-cuatro routers— es hacia donde este archivo evoluciona. Sustitúyalo cuando
-esas piezas existan: hacerlo antes produce un `ImportError` en el arranque.
+El engine se configura de forma perezosa para que `/health` siga respondiendo
+sin que PostgreSQL tenga que estar disponible durante el arranque.
 """
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import health
+from app.core.database import engine
+from app.routers import appointments, auth, catalog, communications, health, inventory, users
 
 settings = get_settings()
+
+
+@asynccontextmanager
+async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+    """Libera el pool al apagar; el engine conecta de forma perezosa."""
+    yield
+    await engine.dispose()
 
 
 def create_app() -> FastAPI:
@@ -24,8 +30,25 @@ def create_app() -> FastAPI:
         version="1.0.0",
         docs_url="/docs",
         openapi_url="/openapi.json",
+        lifespan=lifespan,
+    )
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.cors_origins,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
     )
     app.include_router(health.router)
+    for api_router in (
+        auth.router,
+        users.router,
+        appointments.router,
+        catalog.router,
+        inventory.router,
+        communications.router,
+    ):
+        app.include_router(api_router, prefix=settings.api_prefix)
     return app
 
 

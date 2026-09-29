@@ -43,9 +43,10 @@ Compruebe <http://localhost:8025/health> y <http://localhost:8025/docs>.
 | `app/routers/health.py` | ✅ listo | M1 |
 | `app/schemas/common.py` | ✅ mínimo | M2 lo amplía con `Page` |
 | Integración continua | ✅ lista | M9 la explica |
-| `app/schemas/*` | ❌ falta | **M2** |
-| `app/core/database.py`, `app/models/*` | ❌ falta | **M3** |
-| `app/routers/*`, `app/services/*` | ❌ falta | **M4** |
+| `app/schemas/entities.py` | ✅ esquemas de entrada/salida | — |
+| `app/core/database.py`, `app/models.py` | ✅ SQLAlchemy async | — |
+| `app/routers/*` | ✅ CRUD, autenticación y usuarios | — |
+| `app/services/*` | ❌ falta | Lógica de negocio posterior |
 | `app/dependencies.py` | ❌ falta | **M5** |
 | `app/core/security.py`, `app/routers/auth.py` | ❌ falta | **M6** |
 | `app/core/exceptions.py` | ❌ falta | **M7** |
@@ -64,13 +65,21 @@ bandit -r app/ -ll
 Los cuatro deben salir limpios **antes** de añadir código nuevo. Si el
 esqueleto ya viene con hallazgos, no se sabrá cuáles introdujo el aprendiz.
 
-## El `main.py` de este esqueleto no es el final
+## Routers disponibles
 
-Aquí monta solo `/health` y no toca la base de datos, para que arranque sin
-PostgreSQL. El `main.py` del módulo 1 —con `lifespan`, CORS, manejadores de
-error y los cuatro routers— es hacia donde este evoluciona. Se sustituye
-cuando esas piezas existan; hacerlo antes produce un `ImportError` en el
-arranque que despista.
+Las rutas CRUD se montan bajo `/api/v1` y requieren `Authorization: Bearer <token>`.
+El registro y el login son públicos; el token JWT se obtiene en `POST /api/v1/auth/login`.
+
+| Router | Recursos |
+|---|---|
+| `auth` y `users` | registro, login, usuario, perfiles |
+| `appointments` | citas, agenda, slots bloqueados |
+| `catalog` | servicios, catálogo de precios, galería |
+| `inventory` | productos, proveedores, inventario y relaciones |
+| `communications` | notificaciones, recordatorios |
+
+Cada recurso incluye `GET` de lista y detalle, `POST`, `PATCH` parcial y `DELETE`.
+`/health` permanece público y no consulta la base de datos.
 
 ## Credenciales
 
