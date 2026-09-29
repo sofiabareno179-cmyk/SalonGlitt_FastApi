@@ -1,0 +1,43 @@
+# SGE-API · .gitignore
+#
+# Copie este archivo como `.gitignore` en la raíz del proyecto sge-api,
+# ANTES del primer commit. Un secreto que entra al historial de Git sigue ahí
+# aunque se borre el archivo después.
+
+# --- Secretos: lo primero de la lista, a propósito ---
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials.json
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# --- Herramientas ---
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Base de datos local ---
+*.db
+*.sqlite3
+
+# --- Editor y sistema operativo ---
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# --- Postman ---
+# La colección SÍ se versiona (es un artefacto de entrega), pero el archivo de
+# entorno NO: Postman guarda en él los valores actuales de las variables, y ahí
+# queda el token de quien exportó.
+*postman_environment.json

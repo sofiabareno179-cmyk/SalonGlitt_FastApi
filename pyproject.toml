@@ -1,0 +1,78 @@
+# SGE-API · configuración de calidad.
+#
+# ruff, mypy y bandit son la primera línea de auditoría sobre el código
+# asistido: un modelo de lenguaje puede convencer a un revisor cansado, pero no
+# convence a `mypy --strict`.
+
+[project]
+name = "sge-api"
+version = "1.0.0"
+description = "Microservicio REST de gestión de equipos e inventario de laboratorios"
+requires-python = ">=3.12"
+
+# ---------------------------------------------------------------------------
+# ruff · estilo y errores comunes
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [".venv", "alembic/versions"]
+
+[tool.ruff.lint]
+select = [
+    "E",    # pycodestyle
+    "F",    # pyflakes
+    "I",    # isort: orden de importaciones
+    "N",    # pep8-naming
+    "UP",   # pyupgrade: sintaxis moderna de Python
+    "B",    # flake8-bugbear: errores sutiles
+    "ASYNC",# reglas específicas de código asíncrono
+    "S",    # bandit: seguridad
+    "ANN",  # anotaciones de tipo obligatorias
+    "RUF",  # reglas propias de ruff
+]
+ignore = [
+    "ANN101",  # anotar `self` no aporta nada
+    "ANN102",  # idem para `cls`
+    "B008",    # Depends() en el valor por defecto es el idioma de FastAPI
+]
+
+[tool.ruff.lint.per-file-ignores]
+# En las pruebas se permiten aserciones y credenciales de fixture.
+"tests/*" = ["S101", "S105", "S106", "ANN"]
+
+# ---------------------------------------------------------------------------
+# mypy · tipado estricto
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_unreachable = true
+plugins = ["pydantic.mypy"]
+exclude = ["alembic/", "tests/"]
+
+[[tool.mypy.overrides]]
+# passlib no publica anotaciones de tipo.
+module = ["passlib.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+# ---------------------------------------------------------------------------
+# cobertura
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/main.py"]
+
+[tool.coverage.report]
+# El 80 % es un piso, no una meta. Lo que conviene exigir al 100 % son los
+# caminos de error: es el contrato que consume la app móvil.
+fail_under = 80
+show_missing = true
