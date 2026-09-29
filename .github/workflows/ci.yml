@@ -1,0 +1,48 @@
+name: Calidad
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Dependencias
+        run: pip install -r requirements.txt
+
+      # El orden importa: lo barato primero. Un fallo de estilo se ve en
+      # segundos; la suite de pruebas tarda, y no tiene sentido esperarla para
+      # descubrir que faltaba una importación.
+      - name: Estilo y errores comunes
+        run: ruff check .
+
+      - name: Tipado estricto
+        run: mypy --strict app/
+
+      - name: Seguridad
+        run: bandit -r app/ -ll
+
+      - name: Pruebas con cobertura
+        run: pytest --cov=app --cov-report=term-missing
+
+      # El contrato es un artefacto: si cambia sin querer, la app móvil se
+      # entera en producción. Este paso lo exporta para poder compararlo.
+      - name: Exportar el contrato OpenAPI
+        run: |
+          python -c "import json; from app.main import create_app; print(json.dumps(create_app().openapi(), indent=2))" > openapi.json
+
+      - name: Publicar el contrato
+        uses: actions/upload-artifact@v4
+        with:
+          name: openapi
+          path: openapi.json

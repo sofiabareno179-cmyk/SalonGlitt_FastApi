@@ -1,0 +1,29 @@
+# SGE-API · dependencias con versión fija.
+#
+# Se fijan a propósito: con rangos abiertos, dos aprendices instalan el mismo
+# archivo en días distintos y obtienen versiones distintas. Cuando uno reporta
+# un error que el otro no reproduce, se pierden horas.
+
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.0
+sqlalchemy[asyncio]==2.0.36
+asyncpg==0.30.0
+alembic==1.14.0
+pyjwt==2.10.1
+passlib[bcrypt]==1.7.4
+
+# No es opcional: sin python-multipart, OAuth2PasswordRequestForm falla con un
+# error confuso sobre formularios en el endpoint de login.
+python-multipart==0.0.20
+
+# --- Desarrollo y pruebas ---
+pytest==8.3.4
+pytest-asyncio==0.25.0
+pytest-cov==6.0.0
+httpx==0.28.1
+aiosqlite==0.20.0
+ruff==0.8.6
+mypy==1.14.1
+bandit==1.8.0
