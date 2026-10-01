@@ -44,4 +44,4 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     """Cached accessor so the .env file is parsed only once."""
-    return Settings()  # type: ignore[call-arg]
+    return Settings()

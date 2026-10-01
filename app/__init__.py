@@ -1,0 +1,1 @@
+"""Salon management API package."""
