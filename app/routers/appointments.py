@@ -13,8 +13,16 @@ from app.schemas.entities import (
 )
 
 router = APIRouter()
-router.include_router(build_crud_router(Citas, CitasCreate, CitasRead, prefix="/citas", tags=["citas"]))
-router.include_router(build_crud_router(Agenda, AgendaCreate, AgendaRead, prefix="/agenda", tags=["agenda"]))
+router.include_router(
+    build_crud_router(
+        Citas, CitasCreate, CitasRead, prefix="/citas", tags=["citas"]
+    )
+)
+router.include_router(
+    build_crud_router(
+        Agenda, AgendaCreate, AgendaRead, prefix="/agenda", tags=["agenda"]
+    )
+)
 router.include_router(
     build_crud_router(
         SlotsBloqueados,

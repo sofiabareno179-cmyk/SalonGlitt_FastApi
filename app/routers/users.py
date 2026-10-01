@@ -95,7 +95,10 @@ async def delete_user(user_id: int, db: AsyncSession = Depends(get_db)) -> Respo
         await db.commit()
     except IntegrityError:
         await db.rollback()
-        raise HTTPException(status_code=409, detail="No se puede borrar: hay datos relacionados") from None
+        raise HTTPException(
+            status_code=409,
+            detail="No se puede borrar: hay datos relacionados",
+        ) from None
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

@@ -24,7 +24,13 @@ from app.schemas.entities import (
 
 router = APIRouter()
 router.include_router(
-    build_crud_router(Productos, ProductosCreate, ProductosRead, prefix="/productos", tags=["productos"])
+    build_crud_router(
+        Productos,
+        ProductosCreate,
+        ProductosRead,
+        prefix="/productos",
+        tags=["productos"],
+    )
 )
 router.include_router(
     build_crud_router(
@@ -36,7 +42,13 @@ router.include_router(
     )
 )
 router.include_router(
-    build_crud_router(Inventario, InventarioCreate, InventarioRead, prefix="/inventario", tags=["inventario"])
+    build_crud_router(
+        Inventario,
+        InventarioCreate,
+        InventarioRead,
+        prefix="/inventario",
+        tags=["inventario"],
+    )
 )
 router.include_router(
     build_crud_router(

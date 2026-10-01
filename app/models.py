@@ -53,7 +53,9 @@ class Perfiles(Base):
     __tablename__ = "perfiles"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    usuario_id: Mapped[int] = mapped_column(ForeignKey("usuario.id", ondelete="CASCADE"), unique=True)
+    usuario_id: Mapped[int] = mapped_column(
+        ForeignKey("usuario.id", ondelete="CASCADE"), unique=True
+    )
     rol: Mapped[str] = mapped_column(String(40), default="cliente", nullable=False)
     foto_url: Mapped[str | None] = mapped_column(String(500))
 

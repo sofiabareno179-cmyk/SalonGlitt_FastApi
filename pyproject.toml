@@ -32,8 +32,6 @@ select = [
     "RUF",  # reglas propias de ruff
 ]
 ignore = [
-    "ANN101",  # anotar `self` no aporta nada
-    "ANN102",  # idem para `cls`
     "B008",    # Depends() en el valor por defecto es el idioma de FastAPI
 ]
 

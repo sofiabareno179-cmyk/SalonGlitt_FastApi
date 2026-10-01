@@ -1,7 +1,6 @@
 """Esquemas Pydantic de entrada y salida para las entidades del salon."""
 from datetime import date, datetime, time
 from decimal import Decimal
-
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -44,7 +43,7 @@ class LoginRequest(BaseModel):
 
 class TokenResponse(BaseModel):
     access_token: str
-    token_type: Literal["bearer"] = "bearer"
+    token_type: Literal["bearer"] = "bearer"  # noqa: S105
 
 
 class PerfilesCreate(BaseModel):
