@@ -44,6 +44,7 @@ ignore = [
 # ---------------------------------------------------------------------------
 [tool.mypy]
 python_version = "3.12"
+explicit_package_bases = true
 strict = true
 warn_unreachable = true
 plugins = ["pydantic.mypy"]
