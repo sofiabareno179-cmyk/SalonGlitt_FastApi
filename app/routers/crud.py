@@ -1,6 +1,9 @@
 """Fabrica de endpoints CRUD protegidos para modelos simples."""
+from collections.abc import Sequence
 from copy import copy
-from typing import Any
+from enum import Enum
+from types import GenericAlias
+from typing import Any, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 from pydantic import BaseModel, create_model
@@ -19,20 +22,21 @@ def build_crud_router(
     read_schema: type[BaseModel],
     *,
     prefix: str,
-    tags: list[str],
+    tags: Sequence[str | Enum],
 ) -> APIRouter:
     """Crea listado, detalle, alta, edicion parcial y borrado para un modelo."""
     router = APIRouter(
         prefix=prefix,
-        tags=tags,
+        tags=list(tags),
         dependencies=[Depends(get_current_user)],
     )
 
-    partial_fields: dict[str, tuple[Any, Any]] = {}
+    partial_fields: dict[str, Any] = {}
     for field_name, field_info in create_schema.model_fields.items():
         optional_info = copy(field_info)
         optional_info.default = None
-        partial_fields[field_name] = (field_info.annotation | None, optional_info)
+        field_type = cast(Any, field_info.annotation)
+        partial_fields[field_name] = (field_type | None, optional_info)
     update_schema = create_model(f"{create_schema.__name__}Patch", **partial_fields)
 
     async def list_items(db: AsyncSession = Depends(get_db)) -> list[Base]:
@@ -40,7 +44,12 @@ def build_crud_router(
         return list(result.all())
 
     list_items.__name__ = f"list_{model.__tablename__}"
-    router.add_api_route("", list_items, methods=["GET"], response_model=list[read_schema])
+    router.add_api_route(
+        "",
+        list_items,
+        methods=["GET"],
+        response_model=GenericAlias(list, read_schema),
+    )
 
     async def get_item(item_id: int, db: AsyncSession = Depends(get_db)) -> Base:
         item = await db.get(model, item_id)
