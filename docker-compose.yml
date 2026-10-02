@@ -17,10 +17,6 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-sge}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sge-dev-local-2026}
       POSTGRES_DB: ${POSTGRES_DB:-sge}
-    ports:
-      # 5434 en el host, 5432 dentro. El 5432 del host suele estar tomado por la
-      # instalación local de PostgreSQL; ver el puerto en .env.example.
-      - "${POSTGRES_PORT:-5434}:5432"
     volumes:
       - postgres_datos:/var/lib/postgresql/data
     healthcheck:

@@ -1,0 +1,6 @@
+# Local development only. The base Compose file is used by Coolify without
+# this automatically loaded override, so PostgreSQL stays private there.
+services:
+  db:
+    ports:
+      - "${POSTGRES_PORT:-5434}:5432"
