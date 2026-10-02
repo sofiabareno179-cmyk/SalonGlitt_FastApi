@@ -82,3 +82,11 @@ async def test_ruta_inexistente_es_404(cliente: AsyncClient) -> None:
     respuesta = await cliente.get("/api/v1/no-existe")
 
     assert respuesta.status_code == 404
+
+
+async def test_raiz_redirige_a_docs(cliente: AsyncClient) -> None:
+    """GET / redirige a /docs para evitar 404 al abrir la URL base."""
+    respuesta = await cliente.get("/", follow_redirects=False)
+
+    assert respuesta.status_code == 307
+    assert respuesta.headers["location"] == "/docs"
