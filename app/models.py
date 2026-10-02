@@ -40,12 +40,26 @@ class Usuario(Base):
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
-    perfil: Mapped[Perfiles | None] = relationship(back_populates="usuario", uselist=False)
+    # El `cascade` del ORM debe coincidir con el `ondelete` de la columna.
+    # Sin el, SQLAlchemy pone la FK hija a NULL en vez de borrar el hijo, y
+    # como estas columnas son NOT NULL el borrado del padre revienta con
+    # IntegrityError. Por eso las relaciones con ondelete="CASCADE" --estas
+    # tres-- lo declaran explicitamente.
+    perfil: Mapped[Perfiles | None] = relationship(
+        back_populates="usuario", uselist=False, cascade="all, delete-orphan"
+    )
     citas: Mapped[list[Citas]] = relationship(
         back_populates="usuario", foreign_keys="Citas.usuario_id"
     )
-    agenda: Mapped[list[Agenda]] = relationship(back_populates="usuario")
-    notificaciones: Mapped[list[Notificaciones]] = relationship(back_populates="usuario")
+    agenda: Mapped[list[Agenda]] = relationship(
+        back_populates="usuario", cascade="all, delete-orphan"
+    )
+    notificaciones: Mapped[list[Notificaciones]] = relationship(
+        back_populates="usuario", cascade="all, delete-orphan"
+    )
+    # `Inventario.usuario_id` declara ondelete="SET NULL": los movimientos son
+    # un registro historico y sobreviven al borrado del usuario, asi que aqui
+    # NO debe haber delete-orphan.
     movimientos_inventario: Mapped[list[Inventario]] = relationship(back_populates="usuario")
 
 
@@ -73,7 +87,9 @@ class Agenda(Base):
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     usuario: Mapped[Usuario] = relationship(back_populates="agenda")
-    slots_bloqueados: Mapped[list[SlotsBloqueados]] = relationship(back_populates="agenda")
+    slots_bloqueados: Mapped[list[SlotsBloqueados]] = relationship(
+        back_populates="agenda", cascade="all, delete-orphan"
+    )
 
 
 class Servicios(Base):
@@ -87,9 +103,15 @@ class Servicios(Base):
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
     citas: Mapped[list[Citas]] = relationship(back_populates="servicio")
-    precios: Mapped[list[CatalogoPrecios]] = relationship(back_populates="servicio")
+    precios: Mapped[list[CatalogoPrecios]] = relationship(
+        back_populates="servicio", cascade="all, delete-orphan"
+    )
+    # `Galeria.servicio_id` declara ondelete="SET NULL": una foto suelta sigue
+    # valiendo aunque se retire el servicio, asi que no se borra en cascada.
     galeria: Mapped[list[Galeria]] = relationship(back_populates="servicio")
-    productos: Mapped[list[ServicioProductos]] = relationship(back_populates="servicio")
+    productos: Mapped[list[ServicioProductos]] = relationship(
+        back_populates="servicio", cascade="all, delete-orphan"
+    )
 
 
 class Citas(Base):
@@ -107,7 +129,9 @@ class Citas(Base):
     usuario: Mapped[Usuario] = relationship(back_populates="citas", foreign_keys=[usuario_id])
     profesional: Mapped[Usuario | None] = relationship(foreign_keys=[profesional_id])
     servicio: Mapped[Servicios] = relationship(back_populates="citas")
-    recordatorios: Mapped[list[Recordatorios]] = relationship(back_populates="cita")
+    recordatorios: Mapped[list[Recordatorios]] = relationship(
+        back_populates="cita", cascade="all, delete-orphan"
+    )
 
 
 class CatalogoPrecios(Base):
@@ -147,9 +171,15 @@ class Productos(Base):
     precio_compra: Mapped[Decimal] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     activo: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
 
-    proveedores: Mapped[list[ProductoProveedores]] = relationship(back_populates="producto")
+    # `Inventario.producto_id` NO declara ondelete: borrar un producto con
+    # movimientos debe fallar (409) y no arrastrar el historico.
+    proveedores: Mapped[list[ProductoProveedores]] = relationship(
+        back_populates="producto", cascade="all, delete-orphan"
+    )
     movimientos: Mapped[list[Inventario]] = relationship(back_populates="producto")
-    servicios: Mapped[list[ServicioProductos]] = relationship(back_populates="producto")
+    servicios: Mapped[list[ServicioProductos]] = relationship(
+        back_populates="producto", cascade="all, delete-orphan"
+    )
 
 
 class Proveedores(Base):
