@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.core.config import get_settings
 from app.core.database import engine
@@ -49,6 +50,12 @@ def create_app() -> FastAPI:
         communications.router,
     ):
         app.include_router(api_router, prefix=settings.api_prefix)
+
+    @app.get("/", include_in_schema=False)
+    async def root() -> RedirectResponse:
+        """Redirige la raíz a la documentación interactiva Swagger UI."""
+        return RedirectResponse(url="/docs")
+
     return app
 
 
