@@ -1,0 +1,64 @@
+# SGE-API · qué NO entra en la imagen.
+#
+# El contexto de `docker build` es la carpeta entera. Sin este archivo, el .venv
+# de trescientos megabytes y el archivo .env con la clave de firma viajarían al
+# daemon en cada construcción.
+
+# --- Control de versiones ---
+.git/
+.github/
+.gitignore
+.gitattributes
+
+# --- Entorno virtual ---
+.venv/
+venv/
+
+# --- Secretos ---
+#
+# replicas del bloque de secretos de .gitignore, y es a proposito que las dos
+# listas coincidan. Si un archivo está en una y no en la otra, el resultado es
+# la peor de las dos combinaciones: una clave que Git ignora pero que sí viaja
+# al daemon de Docker, o al reves.
+#
+# Ojo con la diferencia entre ignorarlos y excluirlos: un archivo excluido del
+# contexto no llega al daemon. Uno solo ignorado por Git seguiría enviándose en
+# cada `docker build`, y quedaría a un `COPY` de terminar en una capa.
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+*postman_environment.json
+
+# --- Bytecode y caché ---
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# --- Pruebas y herramientas de calidad ---
+# La suite corre en integración continua, no en el contenedor de servicio.
+tests/
+pytest.ini
+verificar.ps1
+
+# --- Editor y sistema operativo ---
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+
+# --- Datos locales ---
+*.db
+*.sqlite3
+postgres_datos/
+
+# --- Documentación ---
+README.md
+Dockerfile
+docker-compose.yml

@@ -31,6 +31,30 @@ servidor solo acepta conexiones del propio computador.
 
 Compruebe <http://localhost:8025/health> y <http://localhost:8025/docs>.
 
+## Con Docker
+
+Si prefiere no instalar PostgreSQL ni el entorno virtual en el sistema:
+
+```bash
+copy .env.example .env         # y rellene SGE_SECRET_KEY
+docker compose up --build
+```
+
+Se levantan dos servicios: PostgreSQL 16 y la API. La API espera a que la base
+pase su healthcheck antes de arrancar, de modo que no se connects contra un
+servidor que todavía no acepta conexiones. La base queda en el puerto 5434 del
+host (dentro de la red de Compose va al 5432).
+
+```bash
+docker compose logs -f api     # ver la salida
+docker compose down            # parar; conserva los datos
+docker compose down -v         # parar y borrar también el volumen
+```
+
+> Ojo: `requirements.txt` no crea tablas. Levantar el contenedor deja la API
+> responding en `/health`, pero cualquier ruta que consulte la base fallará con
+> «no such table» hasta que se creen las tablas.
+
 ## Qué trae ya, y qué falta
 
 | Pieza | Estado | Se construye en |
@@ -39,6 +63,7 @@ Compruebe <http://localhost:8025/health> y <http://localhost:8025/docs>.
 | `requirements.txt` con versiones fijas | ✅ lista | — |
 | `pyproject.toml` (ruff, mypy, bandit) | ✅ lista | — |
 | `.env.example` y `.gitignore` | ✅ listos | — |
+| `Dockerfile`, `docker-compose.yml`, `.dockerignore` | ✅ listos | — |
 | `app/core/config.py` | ✅ listo | M1 |
 | `app/routers/health.py` | ✅ listo | M1 |
 | `app/schemas/common.py` | ✅ mínimo | M2 lo amplía con `Page` |

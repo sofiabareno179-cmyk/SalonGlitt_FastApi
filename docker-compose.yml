@@ -1,0 +1,61 @@
+# SGE-API · orquestación local con dos servicios: la API y su base de datos.
+#
+# Antes de la primera vez:
+#   1. copie .env.example como .env y rellene SGE_SECRET_KEY
+#      (si el .env no existe, Compose lo dice y se detiene)
+#   2. `docker compose up --build`
+#
+# La API queda en http://localhost:8025 y la documentación en .../docs.
+
+name: sge-api
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-sge}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sge-dev-local-2026}
+      POSTGRES_DB: ${POSTGRES_DB:-sge}
+    ports:
+      # 5434 en el host, 5432 dentro. El 5432 del host suele estar tomado por la
+      # instalación local de PostgreSQL; ver el puerto en .env.example.
+      - "${POSTGRES_PORT:-5434}:5432"
+    volumes:
+      - postgres_datos:/var/lib/postgresql/data
+    healthcheck:
+      # Sin este chequeo, la API puede arrancar contra un servidor que todavía
+      # no acepta conexiones. `depends_on: service_healthy` de abajo espera a que
+      # responda en lugar de esperar un tiempo fijo y adivinar.
+      test:
+        - CMD-SHELL
+        - pg_isready -U "${POSTGRES_USER:-sge}" -d "${POSTGRES_DB:-sge}"
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
+
+  api:
+    build:
+      context: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    # SGE_SECRET_KEY y el resto de ajustes salen del .env del proyecto.
+    env_file:
+      - .env
+    environment:
+      # Sobrescribe el valor del .env, y es a propósito. Allí la URL apunta a
+      # 127.0.0.1:5434, que es la dirección en el HOST. Dentro de la red de
+      # Compose el servidor de PostgreSQL se llama `db` y escucha en el 5432.
+      # `environment` tiene prioridad sobre `env_file`, así que gana este.
+      SGE_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sge}:${POSTGRES_PASSWORD:-sge-dev-local-2026}@db:5432/${POSTGRES_DB:-sge}
+    ports:
+      - "${SGE_PUERTO:-8025}:8025"
+
+volumes:
+  # Con nombre, no anónimo: `docker compose down` conserva los datos y solo
+  # `docker compose down -v` los borra. Perder la base al reiniciar un servicio
+  # sería peor que un directorio suelto ocupando espacio en el disco.
+  postgres_datos:
