@@ -3,7 +3,7 @@ import hashlib
 import hmac
 import secrets
 from datetime import UTC, datetime, timedelta
-from typing import Any, cast
+from typing import Any
 
 import jwt
 
@@ -49,7 +49,4 @@ def create_access_token(subject: int) -> str:
 def decode_access_token(token: str) -> dict[str, Any]:
     """Valida firma y expiracion; deja que PyJWT informe tokens invalidos."""
     settings = get_settings()
-    return cast(
-        dict[str, Any],
-        jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm]),
-    )
+    return jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])

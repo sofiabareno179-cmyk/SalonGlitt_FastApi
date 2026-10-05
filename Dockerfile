@@ -57,4 +57,12 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 # Sin `--reload`: recarga los módulos en caliente en producción y con el pool de
 # conexiones abierto puede dejar sesiones colgando.
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8025", "--proxy-headers"]
+#
+# `--forwarded-allow-ips=*` no es opcional detrás de Coolify. Con `--proxy-headers`
+# a secas, uvicorn solo confía en los headers `X-Forwarded-*` que llegan de
+# 127.0.0.1; el proxy de Coolify los envía desde otra IP de la red interna, así que
+# se ignoran. El síntoma es un `request.url` con esquema http en una app servida
+# por https, que rompe la URL del servidor en OpenAPI y las redirecciones de
+# OAuth2. El comodín es aceptable porque el contenedor no está expuesto: solo
+# alcanza a hablar con él el proxy, que es justamente quien debe firmar esos headers.
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8025", "--proxy-headers", "--forwarded-allow-ips=*"]
