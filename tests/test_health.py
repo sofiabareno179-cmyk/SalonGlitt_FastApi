@@ -84,9 +84,23 @@ async def test_ruta_inexistente_es_404(cliente: AsyncClient) -> None:
     assert respuesta.status_code == 404
 
 
-async def test_raiz_redirige_a_docs(cliente: AsyncClient) -> None:
-    """GET / redirige a /docs para evitar 404 al abrir la URL base."""
-    respuesta = await cliente.get("/", follow_redirects=False)
+async def test_raiz_responde_200(cliente: AsyncClient) -> None:
+    """GET / responde 200 con la ubicación de la documentación.
 
-    assert respuesta.status_code == 307
-    assert respuesta.headers["location"] == "/docs"
+    No puede ser una redirección: el chequeo de salud del proxy de Coolify se
+    hace contra la raíz y no sigue redirecciones, así que un 307 lo tomaba por
+    servicio caído y el dominio acababa sirviendo la página de 404 del proxy.
+    """
+    respuesta = await cliente.get("/")
+
+    assert respuesta.status_code == 200
+    cuerpo = respuesta.json()
+    assert cuerpo["docs"] == "/docs"
+    assert cuerpo["health"] == "/health"
+
+
+async def test_raiz_no_requiere_autenticacion(cliente: AsyncClient) -> None:
+    """La raíz es pública, igual que /health."""
+    respuesta = await cliente.get("/", headers={"Authorization": ""})
+
+    assert respuesta.status_code == 200

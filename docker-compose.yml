@@ -2,10 +2,22 @@
 #
 # Antes de la primera vez:
 #   1. copie .env.example como .env y rellene SGE_SECRET_KEY
-#      (si el .env no existe, Compose lo dice y se detiene)
 #   2. `docker compose up --build`
 #
 # La API queda en http://localhost:8025 y la documentación en .../docs.
+#
+# Este archivo también es el que lee Coolify al desplegar, así que está escrito
+# para las dos plataformas a la vez. La diferencia está en quién resuelve las
+# variables `${...}`:
+#
+#   - local: Compose las lee sola del .env del proyecto.
+#   - Coolify: las declara en la pestaña Environment Variables del recurso, y
+#     `${VARIABLE:?}` aparece ahí como obligatoria, resaltada en rojo y
+#     bloqueando el despliegue mientras esté vacía.
+#
+# Por eso abajo NO hay `env_file:`. El .env está en .gitignore, o sea que no
+# viaja al repositorio que clona Coolify: un `env_file: - .env` dejaba al
+# contenedor sin SGE_SECRET_KEY y el proceso moría al importar los settings.
 
 name: sge-api
 
@@ -15,8 +27,20 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-sge}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sge-dev-local-2026}
+      # Sin default a propósito, por la misma razón que SGE_SECRET_KEY: una
+      # contraseña de PostgreSQL que viaje en el repositorio es una invitación
+      # abierta a borrar la base en cuanto el puerto se exponga. `:?` la marca
+      # como obligatoria en la pestaña Environment Variables de Coolify.
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD en Environment Variables}
       POSTGRES_DB: ${POSTGRES_DB:-sge}
+    ports:
+      # Ligado a 127.0.0.1 a propósito. Sin el prefijo, Docker publica el 5434
+      # en todas las interfaces del servidor, y en un despliegue queda
+      # aceptando conexiones a PostgreSQL desde internet. En local no se pierde
+      # nada: psql en 127.0.0.1:5434 sigue funcionando igual. El 5432 del host
+      # suele estar tomado por la instalación local de PostgreSQL; ver el puerto
+      # en .env.example.
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
     volumes:
       - postgres_datos:/var/lib/postgresql/data
     healthcheck:
@@ -38,17 +62,47 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    # SGE_SECRET_KEY y el resto de ajustes salen del .env del proyecto.
-    env_file:
-      - .env
     environment:
-      # Sobrescribe el valor del .env, y es a propósito. Allí la URL apunta a
-      # 127.0.0.1:5434, que es la dirección en el HOST. Dentro de la red de
-      # Compose el servidor de PostgreSQL se llama `db` y escucha en el 5432.
-      # `environment` tiene prioridad sobre `env_file`, así que gana este.
-      SGE_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sge}:${POSTGRES_PASSWORD:-sge-dev-local-2026}@db:5432/${POSTGRES_DB:-sge}
+      # Todas por interpolación, sin literales. Cada una queda editable en la
+      # pestaña Environment Variables de Coolify, y ninguna se versiona.
+      #
+      # SGE_SECRET_KEY no lleva default a propósito, ni aquí ni en
+      # app/core/config.py: si falta, la aplicación no arranca. Es un fallo
+      # ruidoso el primer día, y vale más que una filtración silenciosa el día
+      # 80. El `:?` le dice a Coolify que no la deje vacía.
+      SGE_SECRET_KEY: ${SGE_SECRET_KEY:?falta SGE_SECRET_KEY en Environment Variables}
+      SGE_DEBUG: ${SGE_DEBUG:-false}
+      SGE_ACCESS_TOKEN_EXPIRE_MINUTES: ${SGE_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
+
+      # `db:5432` y no el 127.0.0.1:5434 del .env: dentro de la red de Compose
+      # el servidor de PostgreSQL se llama `db`. Esta línea también sobrescribe
+      # lo que diga el .env local, y a propósito, porque el .env apunta a la
+      # dirección del host y esa no existe dentro de la red.
+      SGE_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-sge}:${POSTGRES_PASSWORD:?falta POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-sge}
+
+      # Orígenes del navegador. Sin esto, el panel de React servido desde el
+      # dominio de producción recibe un error de CORS en cada llamada, porque la
+      # lista de desarrollo no incluye ese dominio. Formato: JSON o lista con
+      # comas. Vacío desactiva el control de orígenes.
+      SGE_CORS_ORIGINS: ${SGE_CORS_ORIGINS:-}
+
+      # Vacío en el caso normal. Solo si el proxy publica la API bajo un prefijo
+      # de ruta (https://dominio/api), y entonces debe coincidir con ese prefijo
+      # para que Swagger genere URL correctas.
+      SGE_ROOT_PATH: ${SGE_ROOT_PATH:-}
     ports:
-      - "${SGE_PUERTO:-8025}:8025"
+      # Igual que en db: publicado solo en loopback. Así `docker compose up`
+      # sigue dejando la API en http://localhost:8025 como documenta el README,
+      # pero el despliegue no expone el 8025 en la interfaz pública del
+      # servidor. En Coolify la entrada real es el dominio, y el proxy enruta al
+      # puerto 8025 del contenedor por la red interna: el puerto publicado no
+      # participa de ese camino.
+      - "127.0.0.1:${SGE_PUERTO:-8025}:8025"
+    # El puerto que escucha el contenedor, declarado aparte de `ports` porque
+    # sirve para otra cosa: le dice al proxy a qué puerto enviar el tráfico. El
+    # dominio en Coolify lleva el sufijo `:8025` por la misma razón.
+    expose:
+      - "8025"
 
 volumes:
   # Con nombre, no anónimo: `docker compose down` conserva los datos y solo
