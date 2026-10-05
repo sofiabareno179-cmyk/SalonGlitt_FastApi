@@ -62,3 +62,4 @@ postgres_datos/
 README.md
 Dockerfile
 docker-compose.yml
+docker-compose.override.yml
