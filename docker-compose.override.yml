@@ -1,6 +1,25 @@
-# Local development only. The base Compose file is used by Coolify without
-# this automatically loaded override, so PostgreSQL stays private there.
+# SGE-API · puertos para desarrollo local.
+#
+# Este archivo NO lo lee Coolify. Coolify invoca
+# `docker compose -f docker-compose.yml`, y al pasar `-f` explícitamente se deja
+# de buscar los archivos `override` automáticos. Eso es justo lo que se quiere
+# aquí: en el servidor, ningún puerto debe publicarse en el host, y este archivo
+# es el que se los quitaría.
+#
+# `docker compose up --build` en cambio sí lo carga solo, y con esto la API
+# sigue en http://localhost:8025 y PostgreSQL en 127.0.0.1:5434, como documenta
+# el README.
+#
+# Los puertos van ligados a 127.0.0.1 a propósito: sin el prefijo, Docker los
+# publica en todas las interfaces y el equipo queda accesible desde la red local
+# sin que nadie lo haya pedido.
 services:
   db:
     ports:
-      - "${POSTGRES_PORT:-5434}:5432"
+      # El 5432 del host suele estar tomado por la instalación local de
+      # PostgreSQL, de ahí el 5434. Sobrescribible con POSTGRES_PORT en el .env.
+      - "127.0.0.1:${POSTGRES_PORT:-5434}:5432"
+
+  api:
+    ports:
+      - "127.0.0.1:${SGE_PUERTO:-8025}:8025"
