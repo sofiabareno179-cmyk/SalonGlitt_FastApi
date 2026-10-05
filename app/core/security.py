@@ -49,4 +49,7 @@ def create_access_token(subject: int) -> str:
 def decode_access_token(token: str) -> dict[str, Any]:
     """Valida firma y expiracion; deja que PyJWT informe tokens invalidos."""
     settings = get_settings()
-    return jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
+    payload: dict[str, Any] = jwt.decode(
+        token, settings.secret_key, algorithms=[settings.jwt_algorithm]
+    )
+    return payload
