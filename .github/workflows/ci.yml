@@ -39,7 +39,7 @@ jobs:
       # entera en producción. Este paso lo exporta para poder compararlo.
       - name: Exportar el contrato OpenAPI
         env:
-          SGE_SECRET_KEY: "test_secret_key_ci"
+          SGE_SECRET_KEY: "ci-secret-key-32-chars-minimum-for-testing"
           SGE_DATABASE_URL: "sqlite+aiosqlite:///:memory:"
         run: |
           python -c "import json; from app.main import create_app; print(json.dumps(create_app().openapi(), indent=2))" > openapi.json
