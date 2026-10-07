@@ -179,7 +179,9 @@ Resource tipo **Docker Compose**, apuntando a la rama `main`.
      fallaría al construirse.
    - si la contraseña contiene `@`, `:`, `/` o `#`, URL-éncodela
      (`%40`, `%3A`, `%2F`, `%23`), o la URL se interpreta mal.
-4. **CORS.** Declara también `SGE_CORS_ORIGINS` con el origen exacto del panel
+4. **CORS.** Flutter Web en desarrollo permite `localhost` y `127.0.0.1` con
+   cualquier puerto (Flutter puede elegir uno distinto en cada ejecución).
+   Para un panel desplegado, declara `SGE_CORS_ORIGINS` con cada origen exacto
    (esquema, dominio y puerto incluidos):
    `SGE_CORS_ORIGINS=["https://panel.tudominio.com"]`.
 5. **Dominio de la API:** `api.tudominio.com:8025`. El puerto es obligatorio:

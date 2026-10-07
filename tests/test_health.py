@@ -70,6 +70,35 @@ async def test_cors_permite_el_origen_del_panel(cliente: AsyncClient) -> None:
     assert respuesta.headers["access-control-allow-origin"] == "http://localhost:8030"
 
 
+@pytest.mark.parametrize(
+    "origen",
+    ["http://localhost:58061", "http://127.0.0.1:58061"],
+)
+async def test_cors_permite_puertos_dinamicos_de_flutter_web(
+    cliente: AsyncClient, origen: str
+) -> None:
+    """Flutter Web puede usar un puerto local distinto en cada ejecución."""
+    respuesta = await cliente.get("/health", headers={"Origin": origen})
+
+    assert respuesta.headers["access-control-allow-origin"] == origen
+
+
+async def test_cors_preflight_permite_flutter_web(cliente: AsyncClient) -> None:
+    """El login JSON de Flutter Web pasa el preflight desde un puerto dinámico."""
+    origen = "http://localhost:58061"
+    respuesta = await cliente.options(
+        "/api/v1/auth/login",
+        headers={
+            "Origin": origen,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers": "content-type,authorization",
+        },
+    )
+
+    assert respuesta.status_code == 200
+    assert respuesta.headers["access-control-allow-origin"] == origen
+
+
 async def test_cors_no_refleja_un_origen_desconocido(cliente: AsyncClient) -> None:
     """Un origen fuera de la lista no recibe permiso de CORS."""
     respuesta = await cliente.get("/health", headers={"Origin": "https://sitio-malicioso.test"})
