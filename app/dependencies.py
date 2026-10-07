@@ -32,6 +32,6 @@ async def get_current_user(
         raise unauthorized from None
 
     user = await db.get(Usuario, user_id)
-    if user is None or not user.activo:
+    if user is None:
         raise unauthorized
     return user

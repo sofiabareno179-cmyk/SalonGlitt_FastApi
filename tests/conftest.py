@@ -106,7 +106,12 @@ def password() -> str:
 @pytest.fixture
 def registro(email: str, password: str) -> dict[str, str]:
     """Cuerpo valido para `POST /api/v1/auth/register`."""
-    return {"nombre": "Ana", "apellido": "Ruiz", "email": email, "password": password}
+    return {
+        "nombreuser": "ana",
+        "email": email,
+        "password": password,
+        "rol": "cliente",
+    }
 
 
 @pytest_asyncio.fixture

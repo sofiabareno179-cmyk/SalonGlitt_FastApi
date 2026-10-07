@@ -1,5 +1,5 @@
-"""Esquemas Pydantic de entrada y salida para las entidades del salon."""
-from datetime import date, datetime, time
+"""Pydantic schemas matching the existing salon database."""
+from datetime import date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -11,33 +11,31 @@ class ReadSchema(BaseModel):
 
 
 class UsuarioCreate(BaseModel):
-    nombre: str = Field(min_length=1, max_length=100)
-    apellido: str = Field(min_length=1, max_length=100)
-    email: str = Field(min_length=3, max_length=255)
+    nombreuser: str = Field(min_length=1, max_length=100)
+    email: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=8, max_length=128)
-    telefono: str | None = Field(default=None, max_length=30)
+    telefono: str | None = Field(default=None, max_length=20)
+    rol: str = Field(default="cliente", max_length=20)
 
 
 class UsuarioRead(ReadSchema):
     id: int
-    nombre: str
-    apellido: str
+    nombreuser: str
     email: str
     telefono: str | None
-    activo: bool
-    creado_en: datetime
+    rol: str
 
 
 class UsuarioUpdate(BaseModel):
-    nombre: str | None = Field(default=None, min_length=1, max_length=100)
-    apellido: str | None = Field(default=None, min_length=1, max_length=100)
-    email: str | None = Field(default=None, min_length=3, max_length=255)
+    nombreuser: str | None = Field(default=None, min_length=1, max_length=100)
+    email: str | None = Field(default=None, min_length=3, max_length=100)
     password: str | None = Field(default=None, min_length=8, max_length=128)
-    telefono: str | None = Field(default=None, max_length=30)
+    telefono: str | None = Field(default=None, max_length=20)
+    rol: str | None = Field(default=None, max_length=20)
 
 
 class LoginRequest(BaseModel):
-    email: str = Field(min_length=3, max_length=255)
+    email: str = Field(min_length=3, max_length=100)
     password: str = Field(min_length=8, max_length=128)
 
 
@@ -47,227 +45,233 @@ class TokenResponse(BaseModel):
 
 
 class PerfilesCreate(BaseModel):
+    nombre: str = Field(min_length=1, max_length=50)
+    apellido: str | None = Field(default=None, max_length=50)
+    bio: str | None = None
     usuario_id: int
-    rol: str = Field(default="cliente", max_length=40)
-    foto_url: str | None = Field(default=None, max_length=500)
 
 
 class PerfilesRead(ReadSchema):
     id: int
+    nombre: str
+    apellido: str | None
+    bio: str | None
     usuario_id: int
-    rol: str
-    foto_url: str | None
 
 
 class AgendaCreate(BaseModel):
+    dia_semana: str = Field(min_length=1, max_length=255)
+    hora_inicio: str = Field(min_length=1, max_length=255)
+    hora_fin: str = Field(min_length=1, max_length=255)
     usuario_id: int
-    dia_semana: int = Field(ge=0, le=6)
-    hora_inicio: time
-    hora_fin: time
-    activo: bool = True
 
 
 class AgendaRead(ReadSchema):
     id: int
+    dia_semana: str
+    hora_inicio: str
+    hora_fin: str
     usuario_id: int
-    dia_semana: int
-    hora_inicio: time
-    hora_fin: time
-    activo: bool
 
 
 class ServiciosCreate(BaseModel):
     nombre: str = Field(min_length=1, max_length=120)
-    descripcion: str | None = None
-    duracion_minutos: int = Field(gt=0)
     precio: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
-    activo: bool = True
+    duracion: str = Field(min_length=1, max_length=50)
+    categoria: str = Field(min_length=1, max_length=100)
+    cita_id: int | None = None
+    imagen: str | None = Field(default=None, max_length=500)
+    tip: str | None = None
 
 
 class ServiciosRead(ReadSchema):
     id: int
     nombre: str
-    descripcion: str | None
-    duracion_minutos: int
     precio: Decimal
-    activo: bool
+    duracion: str
+    categoria: str
+    cita_id: int | None
+    imagen: str | None
+    tip: str | None
 
 
 class CitasCreate(BaseModel):
+    fecha_hora: datetime
+    estado: str = Field(min_length=1, max_length=100)
     usuario_id: int
-    servicio_id: int
-    profesional_id: int | None = None
-    fecha_inicio: datetime
-    fecha_fin: datetime
-    estado: str = Field(default="pendiente", max_length=30)
-    notas: str | None = None
+    servicio: str | None = Field(default=None, max_length=150)
 
 
 class CitasRead(ReadSchema):
     id: int
-    usuario_id: int
-    servicio_id: int
-    profesional_id: int | None
-    fecha_inicio: datetime
-    fecha_fin: datetime
+    fecha_hora: datetime
     estado: str
-    notas: str | None
+    usuario_id: int
+    servicio: str | None
 
 
 class CatalogoPreciosCreate(BaseModel):
-    servicio_id: int
-    precio: Decimal = Field(ge=0, max_digits=10, decimal_places=2)
-    vigencia_desde: date
-    vigencia_hasta: date | None = None
+    nombre: str = Field(min_length=1, max_length=150)
+    descripcion: str | None = Field(default=None, max_length=500)
+    precio: float = Field(ge=0)
+    categoria: str = Field(min_length=1, max_length=100)
+    fecha_creacion: datetime | None = None
 
 
 class CatalogoPreciosRead(ReadSchema):
     id: int
-    servicio_id: int
-    precio: Decimal
-    vigencia_desde: date
-    vigencia_hasta: date | None
+    nombre: str
+    descripcion: str | None
+    precio: float
+    categoria: str
+    fecha_creacion: datetime | None
 
 
 class GaleriaCreate(BaseModel):
-    servicio_id: int | None = None
-    titulo: str = Field(min_length=1, max_length=150)
-    descripcion: str | None = None
-    imagen_url: str = Field(min_length=1, max_length=500)
+    titulo: str = Field(min_length=1, max_length=255)
+    archivo: str = Field(min_length=1, max_length=255)
+    descripcion: str | None = Field(default=None, max_length=500)
+    fecha_subida: datetime | None = None
+    tipo: str = Field(default="imagen", max_length=10)
 
 
 class GaleriaRead(ReadSchema):
     id: int
-    servicio_id: int | None
     titulo: str
+    archivo: str
     descripcion: str | None
-    imagen_url: str
-    creado_en: datetime
+    fecha_subida: datetime | None
+    tipo: str
 
 
 class ProductosCreate(BaseModel):
     nombre: str = Field(min_length=1, max_length=150)
-    descripcion: str | None = None
-    sku: str | None = Field(default=None, max_length=80)
-    stock: int = Field(default=0, ge=0)
-    stock_minimo: int = Field(default=0, ge=0)
-    precio_compra: Decimal = Field(default=Decimal("0"), ge=0, max_digits=10, decimal_places=2)
-    activo: bool = True
+    descripcion: str | None = Field(default=None, max_length=500)
+    precio: float = Field(ge=0)
+    categoria: str = Field(min_length=1, max_length=100)
 
 
 class ProductosRead(ReadSchema):
     id: int
     nombre: str
     descripcion: str | None
-    sku: str | None
-    stock: int
-    stock_minimo: int
-    precio_compra: Decimal
-    activo: bool
+    precio: float
+    categoria: str
 
 
 class ProveedoresCreate(BaseModel):
-    nombre: str = Field(min_length=1, max_length=150)
-    email: str | None = Field(default=None, max_length=255)
-    telefono: str | None = Field(default=None, max_length=30)
-    direccion: str | None = Field(default=None, max_length=300)
+    nombre_empresa: str = Field(min_length=1, max_length=150)
+    contacto_nombre: str = Field(min_length=1, max_length=150)
+    telefono: str = Field(min_length=1, max_length=20)
+    email: str | None = Field(default=None, max_length=100)
+    direccion: str | None = Field(default=None, max_length=250)
 
 
 class ProveedoresRead(ReadSchema):
     id: int
-    nombre: str
+    nombre_empresa: str
+    contacto_nombre: str
+    telefono: str
     email: str | None
-    telefono: str | None
     direccion: str | None
-    activo: bool
 
 
 class ProductoProveedoresCreate(BaseModel):
     producto_id: int
     proveedor_id: int
-    codigo_proveedor: str | None = Field(default=None, max_length=100)
 
 
 class ProductoProveedoresRead(ReadSchema):
-    id: int
     producto_id: int
     proveedor_id: int
-    codigo_proveedor: str | None
 
 
 class InventarioCreate(BaseModel):
+    stock: int
+    fecha: str = Field(min_length=1, max_length=100)
     producto_id: int
-    usuario_id: int | None = None
-    tipo: str = Field(min_length=1, max_length=20)
-    cantidad: int = Field(gt=0)
-    motivo: str | None = Field(default=None, max_length=250)
+    tipo: str | None = Field(default=None, max_length=20)
 
 
 class InventarioRead(ReadSchema):
     id: int
+    stock: int
+    fecha: str
     producto_id: int
-    usuario_id: int | None
-    tipo: str
-    cantidad: int
-    motivo: str | None
-    creado_en: datetime
+    tipo: str | None
 
 
 class NotificacionesCreate(BaseModel):
     usuario_id: int
-    titulo: str = Field(min_length=1, max_length=150)
-    mensaje: str = Field(min_length=1)
+    titulo: str = Field(min_length=1, max_length=200)
+    mensaje: str | None = Field(default=None, max_length=500)
+    leida: bool | None = None
+    fecha_creacion: datetime | None = None
 
 
 class NotificacionesRead(ReadSchema):
     id: int
     usuario_id: int
     titulo: str
-    mensaje: str
-    leida: bool
-    creado_en: datetime
+    mensaje: str | None
+    leida: bool | None
+    fecha_creacion: datetime | None
 
 
 class RecordatoriosCreate(BaseModel):
-    cita_id: int
-    programado_para: datetime
-    canal: str = Field(default="email", max_length=30)
+    titulo: str = Field(min_length=1, max_length=150)
+    mensaje: str | None = Field(default=None, max_length=500)
+    fecha_recordatorio: str = Field(min_length=1, max_length=100)
+    usuario_id: int
 
 
 class RecordatoriosRead(ReadSchema):
     id: int
-    cita_id: int
-    programado_para: datetime
-    canal: str
-    estado: str
-    enviado_en: datetime | None
+    titulo: str
+    mensaje: str | None
+    fecha_recordatorio: str
+    usuario_id: int
 
 
 class ServicioProductosCreate(BaseModel):
     servicio_id: int
     producto_id: int
-    cantidad: Decimal = Field(default=Decimal("1"), gt=0, max_digits=10, decimal_places=3)
 
 
 class ServicioProductosRead(ReadSchema):
-    id: int
     servicio_id: int
     producto_id: int
-    cantidad: Decimal
 
 
-class SlotsBloqueadosCreate(BaseModel):
-    agenda_id: int
+class BloqueosCreate(BaseModel):
     fecha: date
-    hora_inicio: time
-    hora_fin: time
-    motivo: str | None = Field(default=None, max_length=250)
+    hora_inicio: str = Field(min_length=5, max_length=5)
+    hora_fin: str = Field(min_length=5, max_length=5)
+    motivo: str | None = Field(default=None, max_length=255)
+    usuario_id: int
+    created_at: datetime | None = None
 
 
-class SlotsBloqueadosRead(ReadSchema):
+class BloqueosRead(ReadSchema):
     id: int
-    agenda_id: int
     fecha: date
-    hora_inicio: time
-    hora_fin: time
+    hora_inicio: str
+    hora_fin: str
     motivo: str | None
+    usuario_id: int
+    created_at: datetime | None
+
+
+class PromocionesCreate(BaseModel):
+    titulo: str = Field(min_length=1, max_length=200)
+    descripcion: str | None = None
+    activa: bool | None = None
+    updated_at: datetime | None = None
+
+
+class PromocionesRead(ReadSchema):
+    id: int
+    titulo: str
+    descripcion: str | None
+    activa: bool | None
+    updated_at: datetime | None

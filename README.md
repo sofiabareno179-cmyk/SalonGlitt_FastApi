@@ -107,6 +107,12 @@ esqueleto ya viene con hallazgos, no se sabrá cuáles introdujo el aprendiz.
 Las rutas CRUD se montan bajo `/api/v1` y requieren `Authorization: Bearer <token>`.
 El registro y el login son públicos; el token JWT se obtiene en `POST /api/v1/auth/login`.
 
+Los modelos y esquemas de `app/` corresponden a los nombres físicos que existen
+en PostgreSQL. Por ejemplo, el registro de usuario recibe `nombreuser`, las
+citas usan `fecha_hora` y `servicio`, y los productos usan `precio` y
+`categoria`; no se deben enviar campos de una versión anterior del esquema,
+como `apellido` en `usuario`, `fecha_inicio` en `citas` o `stock` en `productos`.
+
 `/` responde 200 con un JSON pequeño (no una redirección). Es a propósito: el
 chequeo de salud del proxy consulta la raíz y no sigue redirecciones, así que un
 307 ahí hacía que Coolify sirviera su propia página de 404.
@@ -114,12 +120,15 @@ chequeo de salud del proxy consulta la raíz y no sigue redirecciones, así que 
 | Router | Recursos |
 |---|---|
 | `auth` y `users` | registro, login, usuario, perfiles |
-| `appointments` | citas, agenda, slots bloqueados |
-| `catalog` | servicios, catálogo de precios, galería |
+| `appointments` | citas, agenda, bloqueos |
+| `catalog` | servicios, catálogo de precios, galería, promociones |
 | `inventory` | productos, proveedores, inventario y relaciones |
 | `communications` | notificaciones, recordatorios |
 
 Cada recurso incluye `GET` de lista y detalle, `POST`, `PATCH` parcial y `DELETE`.
+Las tablas de relación con clave primaria compuesta reciben ambas claves en la
+ruta del detalle, actualización y borrado (por ejemplo,
+`/producto-proveedores/{producto_id}/{proveedor_id}`).
 `/health` permanece público y no consulta la base de datos.
 
 ## Despliegue en Coolify
@@ -134,35 +143,72 @@ Resource tipo **Docker Compose**, apuntando a la rama `main`.
 | `SGE_DATABASE_URL` | con base propia | ver abajo |
 | `POSTGRES_PASSWORD` | con base propia | solo si se usa el servicio `db` del compose |
 | `SGE_CORS_ORIGINS` | en producción | origen del panel React. JSON o lista con comas |
+| `SGE_ACCESS_TOKEN_EXPIRE_MINUTES` | no | por defecto 60, entre 5 y 1440 |
 | `POSTGRES_USER` / `POSTGRES_DB` | no | por defecto `sge` |
 | `SGE_ROOT_PATH` | no | vacío salvo que el proxy use un prefijo de ruta |
+| `SGE_DEBUG` | no | `false` en producción; `true` expone trazas completas |
 
-**Base de datos administrada por Coolify** (la opción recomendada): declare
-`SGE_DATABASE_URL` con la URL que muestra el panel, **con dos cambios**:
+> **El `.env` local no viaja a Coolify.** Está en `.gitignore` y
+> `docker-compose.yml` no usa `env_file`, así que el contenedor nunca lo lee.
+> El `.env` es copia de trabajo de la máquina de desarrollo; el valor real es
+> el que se declara en la pestaña *Environment Variables* del recurso, con el
+> mismo nombre (`SGE_DATABASE_URL`, no `DATABASE_URL`).
 
-- prefijo `SGE_`, porque la app lee el entorno con ese prefijo
-  (`app/core/config.py`); un `DATABASE_URL` a secas se ignora en silencio
-- driver `postgresql+asyncpg`, no `postgresql`: la URL que da Coolify apunta a
-  psycopg2, que es síncrono y no está instalado, así que el engine fallaría al
-  construirse
+### Conectar la base de datos que ya existe en Coolify
 
+1. **Mismo proyecto.** El recurso de la base y el de la API deben estar en el
+   mismo proyecto de Coolify: así comparten red interna y el hostname
+   `postgres-db-...` resuelve desde el contenedor de la API.
+2. **Copiar los datos de la base.** En el recurso de la base, Coolify muestra
+   hostname (o nombre de contenedor), puerto, usuario, contraseña y nombre de
+   la base. Ese hostname solo resuelve dentro de la red de Coolify.
+3. **Declarar la variable en la API.** Pestaña *Environment Variables* del
+   recurso de la API:
+
+   ```
+   SGE_DATABASE_URL=postgresql+asyncpg://<usuario>:<clave>@postgres-db-xxxx:5432/<base>
+   ```
+
+   Tres cambios respecto a la URL que da Coolify:
+   - prefijo `SGE_`, porque la app lee el entorno con ese prefijo
+     (`app/core/config.py`); un `DATABASE_URL` a secas se ignora en silencio.
+     Tampoco sirve `SGE_DATABASE_URL_COOLIFY` ni ningún otro alias: el nombre
+     que lee el código es exactamente `SGE_DATABASE_URL`.
+   - driver `postgresql+asyncpg`, no `postgresql`: la URL que da Coolify apunta
+     a psycopg2, que es síncrono y no está instalado, así que el engine
+     fallaría al construirse.
+   - si la contraseña contiene `@`, `:`, `/` o `#`, URL-éncodela
+     (`%40`, `%3A`, `%2F`, `%23`), o la URL se interpreta mal.
+4. **CORS.** Declara también `SGE_CORS_ORIGINS` con el origen exacto del panel
+   (esquema, dominio y puerto incluidos):
+   `SGE_CORS_ORIGINS=["https://panel.tudominio.com"]`.
+5. **Dominio de la API:** `api.tudominio.com:8025`. El puerto es obligatorio:
+   el contenedor escucha en 8025 y sin el sufijo el proxy busca en 80 y no lo
+   encuentra.
+
+Con `SGE_DATABASE_URL` declarada, `docker-compose.yml` deja de apuntar a su
+propio servicio `db`. Si además quiere quitar ese servicio (la base
+administrada lo hace redundante), borre el bloque `db` y el `depends_on` de
+`api`.
+
+**Verificación tras el despliegue:**
+
+```bash
+curl https://api.tudominio.com/health     # 200, no consulta la base
+curl https://api.tudominio.com/docs       # 200
+curl https://api.tudominio.com/api/v1/... # una ruta que sí toque la base
 ```
-SGE_DATABASE_URL=postgresql+asyncpg://<usuario>:<clave>@postgres-db-xxxx:5432/<base>
-```
 
-Con esa variable declarada, `docker-compose.yml` deja de apuntar a su propio
-servicio `db`. Si además quiere quitar ese servicio (la base administrada lo
-hace redundante), borre el bloque `db` y el `depends_on` de `api`.
-
-**Dominio:** `api.tudominio.com:8025`. El puerto es obligatorio: el contenedor
-escucha en 8025 y sin el sufijo el proxy busca en 80 y no lo encuentra.
+Si `/health` da 200 pero las rutas de la base fallan, mira los logs del
+contenedor: lo normal es que `SGE_DATABASE_URL` no esté declarada, esté mal el
+hostname o falte el `+asyncpg`.
 
 **No declare `ports` en la pestaña de dominio.** `docker-compose.yml` ya no
 publica ningún puerto; el proxy llega al contenedor por la red interna. Declarar
 un puerto ahí reserva un puerto del servidor y es una causa frecuente de
 despliegues que no levantan.
 
-Tres fallos que cuestan un despliegue, y qué significan:
+Cuatro fallos que cuestan un despliegue, y qué significan:
 
 | Síntoma | Causa |
 |---|---|
