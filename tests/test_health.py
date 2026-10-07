@@ -42,6 +42,20 @@ async def test_health_no_toca_la_base(cliente: AsyncClient) -> None:
     assert respuesta.json()["service"] == get_settings().app_name
 
 
+async def test_readiness_confirma_la_base_y_el_esquema_de_usuario(
+    cliente: AsyncClient,
+) -> None:
+    """El diagnóstico de solo lectura valida las columnas usadas al registrar."""
+    respuesta = await cliente.get("/health/ready")
+
+    assert respuesta.status_code == 200
+    assert respuesta.json() == {
+        "status": "ready",
+        "service": get_settings().app_name,
+        "checks": {"database": "ok", "usuario_schema": "ok"},
+    }
+
+
 async def test_openapi_documenta_los_routers(cliente: AsyncClient) -> None:
     """El esquema generado incluye las rutas de auth y las de la API v1."""
     respuesta = await cliente.get("/openapi.json")
@@ -49,6 +63,7 @@ async def test_openapi_documenta_los_routers(cliente: AsyncClient) -> None:
     assert respuesta.status_code == 200
     rutas = respuesta.json()["paths"]
     assert "/health" in rutas
+    assert "/health/ready" in rutas
     assert "/api/v1/auth/login" in rutas
     assert "/api/v1/servicios" in rutas
     assert "/api/v1/usuarios" in rutas

@@ -29,7 +29,10 @@ El `--host 0.0.0.0` no es opcional si va a consumir esta API desde el emulador
 de Android en la estación siguiente: con el valor por defecto (`127.0.0.1`) el
 servidor solo acepta conexiones del propio computador.
 
-Compruebe <http://localhost:8025/health> y <http://localhost:8025/docs>.
+Compruebe <http://localhost:8025/health>,
+<http://localhost:8025/health/ready> y <http://localhost:8025/docs>.
+`/health/ready` comprueba la conexion de lectura y que la tabla `usuario`
+contenga las columnas requeridas; no crea ni modifica datos.
 
 ## Con Docker
 
