@@ -1,15 +1,15 @@
 """CRUD de citas, agendas y horarios bloqueados."""
 from fastapi import APIRouter
 
-from app.models import Agenda, Citas, SlotsBloqueados
+from app.models import Agenda, Bloqueos, Citas
 from app.routers.crud import build_crud_router
 from app.schemas.entities import (
     AgendaCreate,
     AgendaRead,
+    BloqueosCreate,
+    BloqueosRead,
     CitasCreate,
     CitasRead,
-    SlotsBloqueadosCreate,
-    SlotsBloqueadosRead,
 )
 
 router = APIRouter()
@@ -25,10 +25,10 @@ router.include_router(
 )
 router.include_router(
     build_crud_router(
-        SlotsBloqueados,
-        SlotsBloqueadosCreate,
-        SlotsBloqueadosRead,
-        prefix="/slots-bloqueados",
-        tags=["slots-bloqueados"],
+        Bloqueos,
+        BloqueosCreate,
+        BloqueosRead,
+        prefix="/bloqueos",
+        tags=["bloqueos"],
     )
 )

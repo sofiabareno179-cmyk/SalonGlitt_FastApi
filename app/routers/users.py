@@ -45,11 +45,11 @@ async def create_user(payload: UsuarioCreate, db: AsyncSession = Depends(get_db)
     if existing is not None:
         raise HTTPException(status_code=409, detail="El correo ya esta registrado")
     user = Usuario(
-        nombre=payload.nombre,
-        apellido=payload.apellido,
+        nombreuser=payload.nombreuser,
         email=payload.email,
         password_hash=hash_password(payload.password),
         telefono=payload.telefono,
+        rol=payload.rol,
     )
     db.add(user)
     try:

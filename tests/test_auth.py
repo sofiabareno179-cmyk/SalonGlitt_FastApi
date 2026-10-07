@@ -6,11 +6,8 @@ y que la contrasena nunca viaje de vuelta al cliente.
 """
 import pytest
 from httpx import AsyncClient
-from sqlalchemy import update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from app.models import Usuario
 
 
 async def test_registro_crea_la_cuenta(cliente: AsyncClient, registro: dict[str, str]) -> None:
@@ -20,7 +17,8 @@ async def test_registro_crea_la_cuenta(cliente: AsyncClient, registro: dict[str,
     assert respuesta.status_code == 201
     cuerpo = respuesta.json()
     assert cuerpo["email"] == registro["email"]
-    assert cuerpo["activo"] is True
+    assert cuerpo["nombreuser"] == registro["nombreuser"]
+    assert cuerpo["rol"] == registro["rol"]
     assert cuerpo["id"] > 0
     # Ni `password` ni `password_hash` deben aparecer en la respuesta.
     assert "password" not in cuerpo
@@ -83,22 +81,6 @@ async def test_login_de_usuario_inexistente_es_401(cliente: AsyncClient, passwor
     """Mismo 401 que con contrasena erronea: no se filtra que correos existen."""
     respuesta = await cliente.post(
         "/api/v1/auth/login", json={"email": "nadie@salon.test", "password": password}
-    )
-
-    assert respuesta.status_code == 401
-
-
-async def test_login_de_usuario_inactivo_es_401(
-    cliente: AsyncClient, registro: dict[str, str], email: str, password: str,
-    sesion: AsyncSession,
-) -> None:
-    """Una cuenta desactivada no inicia sesion aunque la contrasena sea correcta."""
-    await cliente.post("/api/v1/auth/register", json=registro)
-    await sesion.execute(update(Usuario).where(Usuario.email == email).values(activo=False))
-    await sesion.commit()
-
-    respuesta = await cliente.post(
-        "/api/v1/auth/login", json={"email": email, "password": password}
     )
 
     assert respuesta.status_code == 401

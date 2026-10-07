@@ -115,6 +115,21 @@ def test_cors_origins_vacio_significa_sin_lista(monkeypatch: pytest.MonkeyPatch)
     assert "http://localhost:8030" in ajustes.cors_origins
 
 
+def test_cors_origins_cadena_vacia_conserva_los_defaults(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`SGE_CORS_ORIGINS=""` no debe cerrar el CORS.
+
+    docker-compose.yml inyecta la variable vacía cuando nadie la declara en
+    Coolify. Con la lista vacía, el panel recibía 403 de origen en cada
+    llamada mientras /health seguía verde.
+    """
+    monkeypatch.setenv("SGE_CORS_ORIGINS", "")
+
+    ajustes = Settings(_env_file=None)
+
+    assert "http://localhost:8030" in ajustes.cors_origins
+    assert ajustes.cors_origins != []
+
+
 def test_root_path_puede_declararse_por_entorno(monkeypatch: pytest.MonkeyPatch) -> None:
     """Publicar la API bajo un prefijo de ruta debe ser configurable."""
     monkeypatch.setenv("SGE_ROOT_PATH", "/api")

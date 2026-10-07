@@ -100,7 +100,12 @@ class Settings(BaseSettings):
         if isinstance(valor, str):
             texto = valor.strip()
             if not texto:
-                return []
+                # docker-compose.yml inyecta SGE_CORS_ORIGINS="" cuando nadie
+                # la declara. Tratar "" como lista vacía cerraba el CORS en
+                # producción sin aviso: el panel recibía 403 de origen en cada
+                # llamada y /health seguía verde, así que nada señalaba la
+                # causa. Vacío = sin declaración = orígenes de desarrollo.
+                return _origenes_por_defecto()
             if texto.startswith("["):
                 return json.loads(texto)
             return [origen.strip() for origen in texto.split(",") if origen.strip()]

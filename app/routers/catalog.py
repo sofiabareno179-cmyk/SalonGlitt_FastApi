@@ -1,13 +1,15 @@
 """CRUD de servicios, precios y galeria."""
 from fastapi import APIRouter
 
-from app.models import CatalogoPrecios, Galeria, Servicios
+from app.models import CatalogoPrecios, Galeria, Promociones, Servicios
 from app.routers.crud import build_crud_router
 from app.schemas.entities import (
     CatalogoPreciosCreate,
     CatalogoPreciosRead,
     GaleriaCreate,
     GaleriaRead,
+    PromocionesCreate,
+    PromocionesRead,
     ServiciosCreate,
     ServiciosRead,
 )
@@ -34,5 +36,14 @@ router.include_router(
 router.include_router(
     build_crud_router(
         Galeria, GaleriaCreate, GaleriaRead, prefix="/galeria", tags=["galeria"]
+    )
+)
+router.include_router(
+    build_crud_router(
+        Promociones,
+        PromocionesCreate,
+        PromocionesRead,
+        prefix="/promociones",
+        tags=["promociones"],
     )
 )

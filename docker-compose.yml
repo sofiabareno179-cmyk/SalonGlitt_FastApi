@@ -104,7 +104,9 @@ services:
       # Orígenes del navegador. Sin esto, el panel de React servido desde el
       # dominio de producción recibe un error de CORS en cada llamada, porque la
       # lista de desarrollo no incluye ese dominio. Formato: JSON o lista con
-      # comas. Vacío desactiva el control de orígenes.
+      # comas. Vacío (o sin declarar) cae en los orígenes de desarrollo; nunca
+      # cierra el CORS, que sería el fallo más difícil de ver: /health seguiría
+      # verde mientras el panel recibe 403 de origen.
       SGE_CORS_ORIGINS: ${SGE_CORS_ORIGINS:-}
 
       # Vacío en el caso normal. Solo si el proxy publica la API bajo un prefijo
