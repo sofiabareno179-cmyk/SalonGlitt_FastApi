@@ -22,7 +22,7 @@ from sqlalchemy.ext.asyncio import (
 from sqlalchemy.pool import StaticPool
 
 from app.core.database import get_db
-from app.main import create_app
+from app.main import create_app, create_cors_app
 from app.models import Base
 
 # Credenciales del usuario de prueba. La contrasena cumple el minimo de 8
@@ -85,7 +85,7 @@ async def cliente(motor: AsyncEngine) -> AsyncIterator[AsyncClient]:
             yield s
 
     app.dependency_overrides[get_db] = _get_db_de_prueba
-    transporte = ASGITransport(app=app)
+    transporte = ASGITransport(app=create_cors_app(app))
     async with AsyncClient(transport=transporte, base_url="http://test") as c:
         yield c
     app.dependency_overrides.clear()

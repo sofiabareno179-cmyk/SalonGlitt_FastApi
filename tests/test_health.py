@@ -8,7 +8,7 @@ import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.core.config import get_settings
-from app.main import create_app
+from app.main import create_app, create_cors_app
 
 
 @pytest.mark.asyncio
@@ -97,6 +97,28 @@ async def test_cors_preflight_permite_flutter_web(cliente: AsyncClient) -> None:
 
     assert respuesta.status_code == 200
     assert respuesta.headers["access-control-allow-origin"] == origen
+
+
+async def test_cors_se_incluye_en_errores_500() -> None:
+    """El navegador debe poder leer errores internos, no ocultarlos como CORS."""
+    app = create_app()
+
+    @app.get("/error-prueba")
+    async def error_prueba() -> None:
+        raise RuntimeError("fallo interno de prueba")
+
+    transporte = ASGITransport(
+        app=create_cors_app(app),
+        raise_app_exceptions=False,
+    )
+    async with AsyncClient(transport=transporte, base_url="http://test") as cliente:
+        respuesta = await cliente.get(
+            "/error-prueba",
+            headers={"Origin": "http://localhost:59794"},
+        )
+
+    assert respuesta.status_code == 500
+    assert respuesta.headers["access-control-allow-origin"] == "http://localhost:59794"
 
 
 async def test_cors_no_refleja_un_origen_desconocido(cliente: AsyncClient) -> None:

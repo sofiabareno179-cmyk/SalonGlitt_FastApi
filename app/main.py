@@ -9,6 +9,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.types import ASGIApp
 
 from app.core.config import get_settings
 from app.core.database import engine
@@ -53,14 +54,7 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
         root_path=settings.root_path,
     )
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=settings.cors_origins,
-        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+
     app.include_router(health.router)
     for api_router in (
         auth.router,
@@ -93,4 +87,16 @@ def create_app() -> FastAPI:
     return app
 
 
-app = create_app()
+def create_cors_app(app: ASGIApp) -> CORSMiddleware:
+    """Envuelve toda la app para incluir CORS también en respuestas 500."""
+    return CORSMiddleware(
+        app=app,
+        allow_origins=settings.cors_origins,
+        allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:\d+)?$",
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+
+app = create_cors_app(create_app())
