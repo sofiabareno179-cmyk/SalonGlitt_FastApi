@@ -1,19 +1,13 @@
-"""La primera prueba, y la que debe pasar antes de escribir nada más.
-
-Comprueba dos cosas a la vez: que la aplicación se construye sin errores de
-importación y que el endpoint de salud responde con la forma declarada. Si esta
-prueba falla, el problema es del entorno, no del código que venga después.
-"""
-from collections.abc import AsyncIterator
-from unittest.mock import AsyncMock
+"""Pruebas de salud y del diagnóstico de disponibilidad de la API."""
+from unittest.mock import Mock
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker
 
+import app.routers.health as health_router
 from app.core.config import get_settings
-from app.core.database import get_db
 from app.main import create_app, create_cors_app
 
 
@@ -50,8 +44,15 @@ async def test_health_no_toca_la_base(cliente: AsyncClient) -> None:
 
 async def test_readiness_confirma_la_base_y_el_esquema_de_usuario(
     cliente: AsyncClient,
+    motor: AsyncEngine,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """El diagnóstico de solo lectura valida las columnas usadas al registrar."""
+    monkeypatch.setattr(
+        health_router,
+        "SessionLocal",
+        async_sessionmaker(motor, expire_on_commit=False),
+    )
     respuesta = await cliente.get("/health/ready")
 
     assert respuesta.status_code == 200
@@ -62,17 +63,28 @@ async def test_readiness_confirma_la_base_y_el_esquema_de_usuario(
     }
 
 
-async def test_readiness_devuelve_diagnostico_si_falla_la_consulta() -> None:
-    """Un fallo de DB produce 503 con diagnóstico, no un 500 genérico."""
+async def test_readiness_devuelve_diagnostico_si_falla_la_consulta(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Un fallo al abrir o consultar la DB produce un 503 diagnosticable."""
     app = create_app()
 
-    sesion_rota = AsyncMock(spec=AsyncSession)
-    sesion_rota.execute.side_effect = SQLAlchemyError("error de base de datos")
+    class _SesionRota:
+        async def __aenter__(self) -> object:
+            return self
 
-    async def _db_rota() -> AsyncIterator[AsyncSession]:
-        yield sesion_rota
+        async def __aexit__(
+            self,
+            _exception_type: type[BaseException] | None,
+            _exception: BaseException | None,
+            _traceback: object | None,
+        ) -> None:
+            return None
 
-    app.dependency_overrides[get_db] = _db_rota
+        async def execute(self, _statement: object) -> None:
+            raise SQLAlchemyError("error de base de datos")
+
+    monkeypatch.setattr(health_router, "SessionLocal", Mock(return_value=_SesionRota()))
     transporte = ASGITransport(app=create_cors_app(app))
     async with AsyncClient(transport=transporte, base_url="http://test") as cliente:
         respuesta = await cliente.get("/health/ready")

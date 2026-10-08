@@ -1,13 +1,11 @@
 """Liveness endpoint. The mobile app calls it before showing the login form."""
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
-from app.core.database import get_db
+from app.core.database import SessionLocal
 from app.schemas.common import HealthResponse
 
 router = APIRouter(tags=["health"])
@@ -27,17 +25,18 @@ async def health() -> HealthResponse:
 
 
 @router.get("/health/ready", summary="Check database readiness")
-async def readiness(db: AsyncSession = Depends(get_db)) -> dict[str, object]:
+async def readiness() -> dict[str, object]:
     """Check the registration table without writing data or exposing credentials."""
     try:
-        await db.execute(
-            text(
-                "SELECT idusuario, nombreuser, email, password_hash, telefono, rol "
-                "FROM usuario LIMIT 0"
+        async with SessionLocal() as db:
+            await db.execute(
+                text(
+                    "SELECT idusuario, nombreuser, email, password_hash, telefono, rol "
+                    "FROM usuario LIMIT 0"
+                )
             )
-        )
-    except SQLAlchemyError as error:
-        logger.exception("Readiness check failed while querying the usuario table")
+    except Exception as error:
+        logger.exception("Readiness check failed while opening or querying the database")
         raise HTTPException(
             status_code=503,
             detail={
