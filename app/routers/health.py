@@ -2,13 +2,12 @@
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import inspect, text
+from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.core.database import get_db
-from app.models import Usuario
 from app.schemas.common import HealthResponse
 
 router = APIRouter(tags=["health"])
@@ -31,35 +30,26 @@ async def health() -> HealthResponse:
 async def readiness(db: AsyncSession = Depends(get_db)) -> dict[str, object]:
     """Check the registration table without writing data or exposing credentials."""
     try:
-        await db.execute(text("SELECT 1"))
-        actual_columns = await db.run_sync(
-            lambda session: {
-                column["name"]
-                for column in inspect(session.connection()).get_columns("usuario")
-            }
+        await db.execute(
+            text(
+                "SELECT idusuario, nombreuser, email, password_hash, telefono, rol "
+                "FROM usuario LIMIT 0"
+            )
         )
-    except SQLAlchemyError:
-        logger.exception("Readiness check failed while checking the database")
+    except SQLAlchemyError as error:
+        logger.exception("Readiness check failed while querying the usuario table")
         raise HTTPException(
             status_code=503,
             detail={
                 "status": "not_ready",
-                "check": "database",
-                "message": "No se pudo consultar la base de datos.",
+                "check": "database_or_usuario_schema",
+                "error_type": type(error).__name__,
+                "message": (
+                    "No se pudo consultar la tabla usuario con las columnas "
+                    "esperadas por el registro."
+                ),
             },
         ) from None
-
-    expected_columns = set(Usuario.__table__.columns.keys())
-    missing_columns = sorted(expected_columns - actual_columns)
-    if missing_columns:
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "status": "not_ready",
-                "check": "usuario_schema",
-                "missing_columns": missing_columns,
-            },
-        )
 
     return {
         "status": "ready",

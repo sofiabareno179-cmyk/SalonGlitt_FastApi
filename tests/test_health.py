@@ -4,10 +4,16 @@ Comprueba dos cosas a la vez: que la aplicación se construye sin errores de
 importación y que el endpoint de salud responde con la forma declarada. Si esta
 prueba falla, el problema es del entorno, no del código que venga después.
 """
+from collections.abc import AsyncIterator
+from unittest.mock import AsyncMock
+
 import pytest
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
+from app.core.database import get_db
 from app.main import create_app, create_cors_app
 
 
@@ -53,6 +59,33 @@ async def test_readiness_confirma_la_base_y_el_esquema_de_usuario(
         "status": "ready",
         "service": get_settings().app_name,
         "checks": {"database": "ok", "usuario_schema": "ok"},
+    }
+
+
+async def test_readiness_devuelve_diagnostico_si_falla_la_consulta() -> None:
+    """Un fallo de DB produce 503 con diagnóstico, no un 500 genérico."""
+    app = create_app()
+
+    sesion_rota = AsyncMock(spec=AsyncSession)
+    sesion_rota.execute.side_effect = SQLAlchemyError("error de base de datos")
+
+    async def _db_rota() -> AsyncIterator[AsyncSession]:
+        yield sesion_rota
+
+    app.dependency_overrides[get_db] = _db_rota
+    transporte = ASGITransport(app=create_cors_app(app))
+    async with AsyncClient(transport=transporte, base_url="http://test") as cliente:
+        respuesta = await cliente.get("/health/ready")
+
+    assert respuesta.status_code == 503
+    assert respuesta.json()["detail"] == {
+        "status": "not_ready",
+        "check": "database_or_usuario_schema",
+        "error_type": "SQLAlchemyError",
+        "message": (
+            "No se pudo consultar la tabla usuario con las columnas "
+            "esperadas por el registro."
+        ),
     }
 
 
