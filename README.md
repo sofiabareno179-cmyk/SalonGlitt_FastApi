@@ -143,11 +143,9 @@ Resource tipo **Docker Compose**, apuntando a la rama `main`.
 | Variable | Obligatoria | Nota |
 |---|---|---|
 | `SGE_SECRET_KEY` | sí | mínimo 32 caracteres. `python -c "import secrets; print(secrets.token_urlsafe(32))"` |
-| `SGE_DATABASE_URL` | con base propia | ver abajo |
-| `POSTGRES_PASSWORD` | con base propia | solo si se usa el servicio `db` del compose |
+| `SGE_DATABASE_URL` | sí | URL interna del recurso de base de datos de Coolify; ver abajo |
 | `SGE_CORS_ORIGINS` | en producción | origen del panel React. JSON o lista con comas |
 | `SGE_ACCESS_TOKEN_EXPIRE_MINUTES` | no | por defecto 60, entre 5 y 1440 |
-| `POSTGRES_USER` / `POSTGRES_DB` | no | por defecto `sge` |
 | `SGE_ROOT_PATH` | no | vacío salvo que el proxy use un prefijo de ruta |
 | `SGE_DEBUG` | no | `false` en producción; `true` expone trazas completas |
 
@@ -191,10 +189,19 @@ Resource tipo **Docker Compose**, apuntando a la rama `main`.
    el contenedor escucha en 8025 y sin el sufijo el proxy busca en 80 y no lo
    encuentra.
 
-Con `SGE_DATABASE_URL` declarada, `docker-compose.yml` deja de apuntar a su
-propio servicio `db`. Si además quiere quitar ese servicio (la base
-administrada lo hace redundante), borre el bloque `db` y el `depends_on` de
-`api`.
+`docker-compose.yml` no define ningún servicio `db`: la API se conecta
+exclusivamente a la base administrada por Coolify. El compose levanta solo la
+API y la une a la red compartida `coolify` (bloque `networks`), que es donde
+vive el recurso de la base. En el panel, esto equivale a activar
+«Connect To Predefined Network» en *Configuration > Advanced* del recurso.
+
+Para desarrollo local, `docker-compose.override.yml` publica la API en
+`127.0.0.1:8025`. Como la red `coolify` se declara externa, créela una vez
+antes de `docker compose up`:
+
+```bash
+docker network create coolify
+```
 
 **Verificación tras el despliegue:**
 
