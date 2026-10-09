@@ -1,7 +1,12 @@
-# SGE-API · orquestación local con dos servicios: la API y su base de datos.
+# SGE-API · orquestación con un solo servicio: la API.
+#
+# La base de datos NO vive aquí. Es un recurso administrado por Coolify y la API
+# la alcanza por la red interna compartida `coolify`, que se declara más abajo
+# como externa. El hostname de la base (postgres-db-...) solo resuelve dentro de
+# esa red; no se puede usar `localhost` ni la IP del servidor.
 #
 # Antes de la primera vez:
-#   1. copie .env.example como .env y rellene SGE_SECRET_KEY
+#   1. copie .env.example como .env y rellene SGE_SECRET_KEY y SGE_DATABASE_URL
 #   2. `docker compose up --build`
 #
 # La API queda en http://localhost:8025 y la documentación en .../docs.
@@ -19,65 +24,21 @@
 # viaja al repositorio que clona Coolify: un `env_file: - .env` dejaba al
 # contenedor sin SGE_SECRET_KEY y el proceso moría al importar los settings.
 #
-# Y por eso tampoco hay `ports:` en ningún servicio. Publicar un puerto en el
-# host no sirve de nada en un despliegue --el proxy llega al contenedor por la
-# red interna-- y sí resulta dañino: el 5434 del servidor ya estaba ocupado y el
+# Y por eso tampoco hay `ports:` en el servicio. Publicar un puerto en el host no
+# sirve de nada en un despliegue --el proxy llega al contenedor por la red
+# interna-- y sí resulta dañino: el 5434 del servidor ya estaba ocupado y el
 # despliegue moría con «Bind for 127.0.0.1:5434 failed: port is already
-# allocated». Para desarrollo local, los puertos están en
+# allocated». Para desarrollo local, el puerto está en
 # docker-compose.override.yml, que Coolify no lee porque invoca
 # `docker compose -f docker-compose.yml`.
 
 name: sge-api
 
 services:
-  db:
-    image: postgres:16-alpine
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-sge}
-      # Default solo para desarrollo, y con el servicio sin puerto publicado: sin
-      # `ports` esta base solo es alcanzable desde la red de Compose, así que la
-      # contraseña no sale del servidor. No es un default aceptable si algún día
-      # se publica el puerto; por eso el comentario.
-      #
-      # Sin `:?` a propósito, porque este servicio también arranca cuando la API
-      # usa una base administrada por Coolify (SGE_DATABASE_URL en el panel), y
-      # una variable obligatoria que no aplica bloquearía el despliegue entero.
-      # Para ese escenario, este servicio sobra: borre el bloque `db` del
-      # compose y quite el `depends_on` de más abajo.
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-sge-dev-local-2026}
-      POSTGRES_DB: ${POSTGRES_DB:-sge}
-    # Sin `ports:` a propósito. El 5434 del host era para que `psql` del
-    # computador de quien desarrolla pudiera conectarse, y en un servidor de
-    # despliegue no aporta nada: la API habla con este servicio por la red
-    # interna como `db:5432`. Publicado, solo producía el error «port is already
-    # allocated» cuando algo en el servidor ya ocupaba el 5434. Quien quiera
-    # abrirlo en local lo tiene en docker-compose.override.yml.
-    volumes:
-      - postgres_datos:/var/lib/postgresql/data
-    healthcheck:
-      # Sin este chequeo, la API puede arrancar contra un servidor que todavía
-      # no acepta conexiones. `depends_on: service_healthy` de abajo espera a que
-      # responda en lugar de esperar un tiempo fijo y adivinar.
-      test:
-        - CMD-SHELL
-        - pg_isready -U "${POSTGRES_USER:-sge}" -d "${POSTGRES_DB:-sge}"
-      interval: 5s
-      timeout: 5s
-      retries: 12
-      start_period: 10s
-
   api:
     build:
       context: .
     restart: unless-stopped
-    depends_on:
-      # Solo espera a la base local. Si Coolify declara SGE_DATABASE_URL para
-      # usar una base administrada, esta dependencia es un retardo
-      # innecesario --la API no hablará con `db`-- pero no un fallo: el
-      # `condition` permite que el despliegue continúe igual.
-      db:
-        condition: service_healthy
     environment:
       # Todas por interpolación, sin literales. Cada una queda editable en la
       # pestaña Environment Variables de Coolify, y ninguna se versiona.
@@ -90,16 +51,16 @@ services:
       SGE_DEBUG: ${SGE_DEBUG:-false}
       SGE_ACCESS_TOKEN_EXPIRE_MINUTES: ${SGE_ACCESS_TOKEN_EXPIRE_MINUTES:-60}
 
-      # Interpolada y no literal, a propósito. Con la URL escrita aquí tal cual,
-      # esta línea pisaba cualquier SGE_DATABASE_URL que se declarase en la
-      # pestaña Environment Variables de Coolify: el `environment` de Compose
-      # gana al --env-file, así que una base administrada por Coolify se
-      # aceptaba en el panel y luego se ignoraba por completo, con la API
-      # conectada a un PostgreSQL vacío.
+      # Obligatoria y sin default: la base ya no es un servicio de este compose,
+      # sino el recurso administrado de Coolify, y su hostname solo existe dentro
+      # de la red `coolify` de más abajo. Sin `:?`, un despliegue sin esta
+      # variable arrancaría apuntando a un host que no resuelve y fallaría en la
+      # primera consulta en lugar de detenerse de forma ruidosa.
       #
-      # El valor por defecto sigue siendo `db:5432`, el servicio de más abajo,
-      # que es lo que se usa en local y en un despliegue sin base externa.
-      SGE_DATABASE_URL: ${SGE_DATABASE_URL:-postgresql+asyncpg://${POSTGRES_USER:-sge}:${POSTGRES_PASSWORD:-sge}@db:5432/${POSTGRES_DB:-sge}}
+      # Recuerde: prefijo `SGE_` (un `DATABASE_URL` a secas se ignora), driver
+      # `postgresql+asyncpg` (no `psycopg2`, que no está instalado) y URL-encoder
+      # la contraseña si contiene `@`, `:`, `/` o `#`.
+      SGE_DATABASE_URL: ${SGE_DATABASE_URL:?falta SGE_DATABASE_URL en Environment Variables}
 
       # Orígenes del navegador. Sin esto, el panel de React servido desde el
       # dominio de producción recibe un error de CORS en cada llamada, porque la
@@ -113,19 +74,28 @@ services:
       # de ruta (https://dominio/api), y entonces debe coincidir con ese prefijo
       # para que Swagger genere URL correctas.
       SGE_ROOT_PATH: ${SGE_ROOT_PATH:-}
-    # Sin `ports:` por el mismo motivo que en `db`: en un despliegue el proxy de
-    # Coolify alcanza el contenedor por la red interna y no necesita que el puerto
-    # esté publicado en el host. Publicarlo reserva un puerto del servidor que
-    # puede estar ocupado, que es exactamente el fallo que paró este despliegue.
+    # Sin `ports:` a propósito: en un despliegue el proxy de Coolify alcanza el
+    # contenedor por la red interna y no necesita que el puerto esté publicado en
+    # el host. Publicarlo reserva un puerto del servidor que puede estar ocupado,
+    # que es exactamente el fallo que paró este despliegue.
     #
     # `expose` sí se queda: no publica nada, pero documenta el puerto y es lo que
     # le dice al proxy a dónde enviar el tráfico. El dominio en Coolify lleva el
     # sufijo `:8025` por la misma razón.
     expose:
       - "8025"
+    networks:
+      # Red compartida de Coolify. En ella viven tanto este contenedor como el
+      # recurso de la base de datos, así que el hostname de la base resuelve.
+      # En el panel, esto equivale a activar «Connect To Predefined Network» en
+      # Configuration > Advanced.
+      - coolify
 
-volumes:
-  # Con nombre, no anónimo: `docker compose down` conserva los datos y solo
-  # `docker compose down -v` los borra. Perder la base al reiniciar un servicio
-  # sería peor que un directorio suelto ocupando espacio en el disco.
-  postgres_datos:
+networks:
+  coolify:
+    # La crea Coolify en el servidor; este archivo solo se une a ella. No la
+    # define como local para no crear una red propia que aislaría la API del
+    # recurso de la base. En desarrollo local, créela una vez con
+    # `docker network create coolify` antes de `docker compose up`.
+    external: true
+    name: coolify
