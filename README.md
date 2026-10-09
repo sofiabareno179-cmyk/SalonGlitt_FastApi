@@ -39,26 +39,26 @@ contenga las columnas requeridas; no crea ni modifica datos.
 Si prefiere no instalar PostgreSQL ni el entorno virtual en el sistema:
 
 ```bash
-copy .env.example .env         # y rellene SGE_SECRET_KEY
+copy .env.example .env         # y rellene SGE_SECRET_KEY y SGE_DATABASE_URL
+docker network create coolify  # una sola vez: la red compartida de Coolify
 docker compose up --build
 ```
 
-Se levantan dos servicios: PostgreSQL 16 y la API. La API espera a que la base
-pase su healthcheck antes de arrancar, de modo que no se conecta contra un
-servidor que todavía no acepta conexiones.
+Se levanta un solo servicio: la API. La base de datos no vive en este compose,
+sino que es un recurso administrado por Coolify y se alcanza por la red
+compartida `coolify` (declarada como externa en `docker-compose.yml`). El
+hostname de la base (`postgres-db-...`) solo resuelve dentro de esa red.
 
-Los puertos se publican solo en desarrollo local, y lo hace
-`docker-compose.override.yml`: la API en `http://localhost:8025` y la base en
-`127.0.0.1:5434` (el 5432 del host suele estar tomado por la instalación local
-de PostgreSQL). Ese archivo **no** se aplica en Coolify, porque ahí se invoca
+El puerto se publica solo en desarrollo local, y lo hace
+`docker-compose.override.yml`: la API en `http://localhost:8025`. Ese archivo
+**no** se aplica en Coolify, porque ahí se invoca
 `docker compose -f docker-compose.yml` y con `-f` explícito Compose deja de
 cargar los overrides automáticos. En el servidor no se publica ningún puerto: el
 proxy llega a la API por la red interna.
 
 ```bash
 docker compose logs -f api     # ver la salida
-docker compose down            # parar; conserva los datos
-docker compose down -v         # parar y borrar también el volumen
+docker compose down            # parar
 ```
 
 > Ojo: en el despliegue, `docker-compose.yml` no publica puertos. Si el dominio
